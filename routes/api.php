@@ -60,6 +60,11 @@ Route::get('/test_mysql/', function (Request $request) {
     }
 });
 
+/* 
+  MANDATORY ASSIGNMENT
+ Create a new "Students collection" in our MongoDB database
+*/
+
 /*
     Create a new "customer" in our SQL database
     This is just to show the code looks identical to the MongoDB version
@@ -134,4 +139,33 @@ Route::get('/delete_eloquent/', function (Request $request) {
     $result = CustomerMongoDB::where('guid', 'cust_1111')->delete();
 
     return ['status' => 'executed', 'data' => $result];
+});
+
+/*
+    Create a new record with nested data, using Eloquent
+*/
+Route::get('/create_nested/', function (Request $request) {
+    $message = "executed";
+    $success = null;
+    // replace address string with an object (PHP data structure)
+    $address = new stdClass;
+    $address->street = '123 my street name';
+    $address->city   = 'my city';
+    $address->zip    = '12345';
+    // replace one email string with an array of email strings (PHP data structure)
+    $emails = ['j.doe@gmail.com', 'j.doe@work.com'];
+    // assign data structures to the object we want to save in the database
+    try {
+        $customer = new CustomerMongoDB();
+        $customer->guid         = 'cust_2222';
+        $customer->first_name   = 'John';
+        $customer->family_name  = 'Doe';
+        $customer->email        = $emails; // array of email strings
+        $customer->address      = $address; // object with street, city, zip
+        $success = $customer->save();       // save() returns 1 or 0
+    } catch (\Exception $e) {
+        $message = $e->getMessage();
+    }
+
+    return ['status' => $message, 'data' => $success];
 });
