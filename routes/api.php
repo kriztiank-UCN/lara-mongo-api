@@ -35,7 +35,7 @@ Route::get('/hello_world/', function (Request $request) {
 /*
    Send a ping to our MongoDB cluster to see if our connection settings are correct
 */
-Route::get('/test_mongodb/', function (Request $request) {
+Route::get('/ping', function (Request $request) {
 
     $connection = DB::connection('mongodb');
     $msg = 'MongoDB is accessible!';

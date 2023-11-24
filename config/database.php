@@ -38,7 +38,7 @@ return [
         'mongodb' => [
             'driver' => 'mongodb',
             'dsn' => env('MONGODB_URI'),
-            'database' => 'mongodb',
+            'database' => 'laramongo',
         ],
 
         'mongodb_mflix' => [
