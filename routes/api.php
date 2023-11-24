@@ -169,3 +169,71 @@ Route::get('/create_nested/', function (Request $request) {
 
     return ['status' => $message, 'data' => $success];
 });
+
+/*
+    Find records using a native MongoDB Query
+    1 - with Model->whereRaw()
+    2 - with native Collection->findOne()
+    3 - with native Collection->find()
+*/
+Route::get('/find_native/', function (Request $request) {
+
+    // a simple MongoDB query that looks for a customer based on the guid
+    $mongodbquery = ['guid' => 'cust_2222'];
+
+    // Option #1
+    //========== whereraw
+    // use Eloquent's whereRaw() function. This is the easiest way to stay close to the Laravel paradigm
+    // returns an "Illuminate\Database\Eloquent\Collection" Object
+    $results = CustomerMongoDB::whereRaw( $mongodbquery )->get();
+
+    // Option #2
+    //========== document
+    // use the native MongoDB driver Collection object. with it, you can use the native MongoDB Query API
+    //
+    $mdb_collection = DB::connection('mongodb')->getCollection('laracoll');
+
+    // find the first document that matches the query
+    $mdb_bsondoc    = $mdb_collection->findOne( $mongodbquery ); // returns a "MongoDB\Model\BSONDocument" Object
+
+    // if we want to convert the MongoDB Document to a Laravel Model, use the Model's newFromBuilder() method
+    $cust    = new CustomerMongoDB();
+    $one_doc = $cust->newFromBuilder((array) $mdb_bsondoc);
+
+    // Option #3
+    //========== cursor_array
+    // find all documents that matches the query
+    // Note: we're using find without any arguments, so ALL documents will be returned
+    $mdb_cursor       = $mdb_collection->find( ); // returns a "MongoDB\Driver\Cursor" object
+    $cust_array = array();
+    foreach ($mdb_cursor->toArray() as $bson) {
+        $cust_array[] = $cust->newFromBuilder( $bson );
+    }
+
+    return ['status' => 'executed', 'whereraw' => $results, 'document' => $one_doc, 'cursor_array' => $cust_array];
+});
+
+/*
+    Update a record using a native MongoDB Query
+*/
+Route::get('/update_native/', function (Request $request) {
+    $mdb_collection = DB::connection('mongodb')->getCollection('laracoll');
+
+    $match = ['guid' => 'cust_2222'];
+    $update = ['$set' => ['first_name' => 'Henry', 'address.street' => '777 new street name'] ];
+    $result = $mdb_collection->updateOne($match, $update );
+
+    return ['status' => 'executed', 'matched_docs' => $result->getMatchedCount(), 'modified_docs' => $result->getModifiedCount()];
+});
+
+/*
+    Find and delete the first record that matches the query
+*/
+Route::get('/delete_native/', function (Request $request) {
+    $mdb_collection = DB::connection('mongodb')->getCollection('laracoll');
+
+    $match = ['guid' => 'cust_2222'];
+    $result = $mdb_collection->deleteOne( $match );
+
+    return ['status' => 'executed', 'deleted_docs' => $result->getDeletedCount() ];
+});
