@@ -185,7 +185,7 @@ Route::get('/find_native/', function (Request $request) {
     //========== whereraw
     // use Eloquent's whereRaw() function. This is the easiest way to stay close to the Laravel paradigm
     // returns an "Illuminate\Database\Eloquent\Collection" Object
-    $results = CustomerMongoDB::whereRaw( $mongodbquery )->get();
+    $results = CustomerMongoDB::whereRaw($mongodbquery)->get();
 
     // Option #2
     //========== document
@@ -194,7 +194,7 @@ Route::get('/find_native/', function (Request $request) {
     $mdb_collection = DB::connection('mongodb')->getCollection('laracoll');
 
     // find the first document that matches the query
-    $mdb_bsondoc    = $mdb_collection->findOne( $mongodbquery ); // returns a "MongoDB\Model\BSONDocument" Object
+    $mdb_bsondoc    = $mdb_collection->findOne($mongodbquery); // returns a "MongoDB\Model\BSONDocument" Object
 
     // if we want to convert the MongoDB Document to a Laravel Model, use the Model's newFromBuilder() method
     $cust    = new CustomerMongoDB();
@@ -204,10 +204,10 @@ Route::get('/find_native/', function (Request $request) {
     //========== cursor_array
     // find all documents that matches the query
     // Note: we're using find without any arguments, so ALL documents will be returned
-    $mdb_cursor       = $mdb_collection->find( ); // returns a "MongoDB\Driver\Cursor" object
+    $mdb_cursor       = $mdb_collection->find(); // returns a "MongoDB\Driver\Cursor" object
     $cust_array = array();
     foreach ($mdb_cursor->toArray() as $bson) {
-        $cust_array[] = $cust->newFromBuilder( $bson );
+        $cust_array[] = $cust->newFromBuilder($bson);
     }
 
     return ['status' => 'executed', 'whereraw' => $results, 'document' => $one_doc, 'cursor_array' => $cust_array];
@@ -220,8 +220,8 @@ Route::get('/update_native/', function (Request $request) {
     $mdb_collection = DB::connection('mongodb')->getCollection('laracoll');
 
     $match = ['guid' => 'cust_2222'];
-    $update = ['$set' => ['first_name' => 'Henry', 'address.street' => '777 new street name'] ];
-    $result = $mdb_collection->updateOne($match, $update );
+    $update = ['$set' => ['first_name' => 'Henry', 'address.street' => '777 new street name']];
+    $result = $mdb_collection->updateOne($match, $update);
 
     return ['status' => 'executed', 'matched_docs' => $result->getMatchedCount(), 'modified_docs' => $result->getModifiedCount()];
 });
@@ -233,7 +233,34 @@ Route::get('/delete_native/', function (Request $request) {
     $mdb_collection = DB::connection('mongodb')->getCollection('laracoll');
 
     $match = ['guid' => 'cust_2222'];
-    $result = $mdb_collection->deleteOne( $match );
+    $result = $mdb_collection->deleteOne($match);
 
-    return ['status' => 'executed', 'deleted_docs' => $result->getDeletedCount() ];
+    return ['status' => 'executed', 'deleted_docs' => $result->getDeletedCount()];
+});
+
+/*
+    Executes an aggregation pipeline
+
+    Compute the average ratings for every genre that we have in the database
+*/
+Route::get('/aggregate/', function (Request $request) {
+
+    $mdb_collection = DB::connection('mongodb_mflix')->getCollection('movies');
+
+    /* 
+        The first stage is we're going to unwind the documents per genre,
+        if a document has two genres like action and drama, 
+        then we'll split those to make sure that we have only one genre per document
+    */
+    $stage0 = ['$unwind' => ['path' => '$genres']];
+    // Group by genre and compute the average rating for every movie in that genre
+    $stage1 = ['$group' => ['_id' => '$genres', 'averageGenreRating' => ['$avg' => '$imdb.rating']]];
+    // Sort by higest rating first
+    $stage2 = ['$sort' => ['averageGenreRating' => -1]];
+
+    $aggregation = [$stage0, $stage1, $stage2];
+
+    $mdb_cursor = $mdb_collection->aggregate($aggregation);
+
+    return ['status' => 'executed', 'data' => $mdb_cursor->toArray()];
 });
